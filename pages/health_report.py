@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fpdf import FPDF
@@ -88,8 +89,8 @@ def generate_health_report(data):
 
        - The average body temperature over the monitoring period was {Average Temperature:.2f} °C.
          - Standard deviation: {Temperature Std Dev:.2f}
-         - Maximum temperature: {Max Temperature:.2f} °C
-         - Minimum temperature: {Min Temperature:.2f} °C
+         - Maximum temperature: {Max Temperature:.2f} °F
+         - Minimum temperature: {Min Temperature:.2f} °F
 
        - The average SpO2 over the monitoring period was {Average SpO2:.2f} %.
          - Standard deviation: {SpO2 Std Dev:.2f}
@@ -132,7 +133,7 @@ def plot_graphs(data):
     axs[2].set_xlabel('Time')
     axs[2].set_ylabel('SpO2 (%)')
 
-    sns.heatmap(data.corr(), annot=True, cmap='coolwarm', ax=axs[3])
+    sns.heatmap(data[["Heart Rate", "Temperature", "SpO2", "ECG"]].corr(), annot=True, cmap='coolwarm', ax=axs[3])
     axs[3].set_title('Correlation Heatmap')
 
     plt.tight_layout()
@@ -151,7 +152,7 @@ def save_report_to_pdf(report, summary, data, path):
     pdf.add_table(summary)
 
     fig = plot_graphs(data)
-    graph_path = "graphs.png"
+    graph_path = "static/graphs.png"
     fig.savefig(graph_path)  # Increase DPI for higher resolution
     pdf.add_page()
     pdf.add_border()
@@ -164,36 +165,43 @@ def save_report_to_pdf(report, summary, data, path):
 menu_with_redirect()
 
 st.markdown(
-        """
-        <style>
-        .gradient-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 1rem 0;
-            height: 10vh; /* Adjust height as needed */
-            border-radius: 10px;
-            background: linear-gradient(45deg, #ff6ec4, #7873f5);
-        }
-
-        .gradient-text {
-            text-align: center;
-            font-size: 2.5em;
-            color: white;
-        }
-        </style>
-        <div class="gradient-container">
-            <h1 class="gradient-text">Health Report</h1>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
+    """
+    <style>
+    .gradient-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        margin: 1rem 0;
+        padding: 20px;
+        border-radius: 10px;
+        background: linear-gradient(45deg, #ff6ec4, #7873f5);
+        color: white;
+        text-align: center;
+    }
+    .gradient-text {
+        font-size: 2.5em;
+        font-weight: bold;
+    }
+    .gradient-subtext {
+        font-size: 1.2em;
+        margin-top: 10px;
+    }
+    </style>
+    <div class="gradient-container">
+        <div class="gradient-text">Health Report</div>
+        <div class="gradient-subtext">A comprehensive overview of your health data with detailed analysis and visualizations</div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
 
 if uploaded_file is not None:
     data = pd.read_csv(uploaded_file)
+    data = data.replace(0, np.nan)
+    data = data.dropna()
 
 
     with st.popover("View Data", use_container_width=True):

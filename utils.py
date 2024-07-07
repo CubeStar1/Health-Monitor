@@ -9,11 +9,16 @@ def logout():
 def authenticated_menu():
     with st.sidebar:
         with st.container(border=True):
-            st.image('idea-lab-round.png')
-            st.page_link("pages/sensor_dashboard.py", label="Sensor Dashboard")
-            st.page_link("pages/health_report.py", label="Health Report Generator")
-            st.page_link("pages/chat.py", label="Chat Dashboard")
-            # st.page_link("app.py", label="Log out")
+            st.image('static/idea-lab-round.png')
+            with st.expander("Menu", expanded=True):
+                st.page_link("pages/sensor_dashboard.py", label="Health Monitor", icon="🩺")
+                st.page_link("pages/health_report.py", label="Health Report", icon="📊")
+                st.page_link("pages/chat.py", label="Chat with Health Assistant", icon="💬")
+                st.page_link("pages/test.py", label="Data Visualiser", icon="📈")
+                st.page_link("pages/about.py", label="About", icon="📖")
+                st.page_link("pages/settings.py", label="Account Settings", icon="⚙️")
+                st.page_link("pages/admin.py", label="Admin", icon="🔒", disabled="admin" not in st.session_state.role)
+                # st.page_link("app.py", label="Log out")
             if st.button("Log out", use_container_width=True):
                 logout()
 def unauthenticated_menu():

@@ -1,54 +1,178 @@
 import streamlit as st
-from supabase import create_client
-st.set_page_config(layout="wide")
-from supabase import create_client
-
-SUPABASE_URL = "https://khpbpwchudsamfigczsj.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtocGJwd2NodWRzYW1maWdjenNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTg5NTU3MDYsImV4cCI6MjAzNDUzMTcwNn0.jsP_CmBT8gDDulvcsMxp6U7oK8HxBL9QAm5y4gTsIHk"
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+import sqlite3
+import hashlib
+import os
 
 
+def init_db():
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS users
+                 (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS sensor_data
+                 (id INTEGER PRIMARY KEY, user_id INTEGER, 
+                  heart_rate REAL, temperature REAL, ecg REAL, spo2 REAL, 
+                  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  FOREIGN KEY (user_id) REFERENCES users(id))''')
+    conn.commit()
+    conn.close()
 
-def authenticated_menu():
-    st.sidebar.page_link("pages/sensor_dashboard.py", label="Sensor Dashboard")
-    st.sidebar.page_link("pages/health_report.py", label="Health Report Generator")
-    # st.sidebar.page_link("app.py", label="Log out")
 
-def unauthenticated_menu():
-    st.sidebar.page_link("app.py", label="Log in")
 
-def menu():
-    if "role" not in st.session_state or st.session_state.role is None:
-        unauthenticated_menu()
-    else:
-        authenticated_menu()
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-# Example login function (replace with actual logic)
-def login(username, password):
-    if username == "user" and password == "pass":
-        st.session_state.role = "user"
-        st.experimental_rerun()
-    else:
-        st.error("Invalid credentials")
 
-# Logout function
+
+
+def register_user(username, password):
+    hashed_password = hash_password(password)
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
+
+
+def authenticate_user(username, password):
+    hashed_password = hash_password(password)
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("SELECT id, username FROM users WHERE username=? AND password=?", (username, hashed_password))
+    result = c.fetchone()
+    conn.close()
+    return result
+
+
+
 def logout():
-    if "role" in st.session_state:
-        del st.session_state["role"]
-    st.success("Logged out successfully")
-    st.experimental_rerun()
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
 
-# UI for login if user is not logged in
+
+def update_username(user_id, new_username):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    try:
+        c.execute("UPDATE users SET username = ? WHERE id = ?", (new_username, user_id))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
+def update_password(user_id, new_password):
+    hashed_password = hash_password(new_password)
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_password, user_id))
+    conn.commit()
+    conn.close()
+    return True
+
+def delete_account(user_id):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM sensor_data WHERE user_id = ?", (user_id,))
+    c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return True
+init_db()
+
+
+is_admin_user = lambda username: username == "admin"
+
+st.set_page_config(page_title="Health Monitor", page_icon="🩺", layout="centered")
+
 if "role" not in st.session_state or st.session_state.role is None:
-    st.title("Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Log in"):
-        login(username, password)
+    with st.container(border=True):
+
+        header_html = """
+                <style>
+                .gradient-container {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    margin: 0rem 0rem 1rem 0rem;
+                    padding: 20px;
+                    border-radius: 10px;
+                    background: linear-gradient(45deg, #43cea2, #185a9d);
+                    color: white;
+                    text-align: center;
+                    box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
+                }
+
+                .gradient-text {
+                    font-size: 2.5em;
+                    font-weight: bold;
+                }
+
+                .gradient-subtext {
+                    font-size: 1.2em;
+                    margin-top: 10px;
+                }
+                </style>
+                <div class="gradient-container">
+                    <div class="gradient-text">Health Monitor</div>
+                    <div class="gradient-subtext">Analyze and visualize your health data with ease</div>
+                </div>
+
+                """
+
+
+        st.markdown(header_html, unsafe_allow_html=True)
+
+        tab1, tab2 = st.tabs(["Login", "Sign Up"])
+
+        with tab1:
+            with st.form(key="login_form"):
+                username = st.text_input("Username")
+                password = st.text_input("Password", type="password")
+                submit_button = st.form_submit_button("Log in")
+
+                if submit_button:
+                    result = authenticate_user(username, password)
+                    if result:
+                        st.session_state.role = "user"
+                        st.session_state.username = result[1]
+                        st.session_state.user_id = result[0]
+                        if is_admin_user(username):
+                            st.session_state.role = "admin"
+                        st.success("Logged in successfully!")
+                        st.experimental_rerun()
+                    else:
+                        st.error("Invalid credentials")
+
+        with tab2:
+            with st.form(key="signup_form"):
+                new_username = st.text_input("Choose a Username")
+                new_password = st.text_input("Choose a Password", type="password")
+                confirm_password = st.text_input("Confirm Password", type="password")
+                signup_button = st.form_submit_button("Sign Up")
+
+                if signup_button:
+                    if new_password != confirm_password:
+                        st.error("Passwords do not match")
+                    elif register_user(new_username, new_password):
+                        st.success("Account created successfully! Please log in.")
+                    else:
+                        st.error("Username already exists")
+
 else:
+    st.title(f"Welcome, {st.session_state.username}!")
+    if st.button("Log out"):
+        logout()
+        st.experimental_rerun()
+
+
     st.switch_page("pages/sensor_dashboard.py")
-    # st.title("Welcome to the Dashboard")
-    # st.success("You are logged in.")
-    # if st.button("Log out"):
-    #     logout()
-    # menu()
+

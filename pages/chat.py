@@ -8,10 +8,8 @@ from dotenv import load_dotenv
 from utils import menu_with_redirect
 
 menu_with_redirect()
-os.environ['GOOGLE_APPLICATION_KEY'] = 'AIzaSyCzjwsJGKswQnPph0wXBwhogfZL_WuibSY'
 
-
-GOOGLE_API_KEY= 'AIzaSyCzjwsJGKswQnPph0wXBwhogfZL_WuibSY'
+GOOGLE_API_KEY = st.secrets['GOOGLE_API_KEY']
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -56,31 +54,36 @@ with st.sidebar:
     st.session_state.chat_title = f'ChatSession-{st.session_state.chat_id}'
 
 st.markdown(
-        """
-        <style>
-        .gradient-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 1rem 0;
-            height: 10vh; /* Adjust height as needed */
-            border-radius: 10px;
-            background: linear-gradient(45deg, #ff6ec4, #7873f5);
-        }
-
-        .gradient-text {
-            text-align: center;
-            font-size: 2.5em;
-            color: white;
-            font-family: 'Inter', sans-serif;
-        }
-        </style>
-        <div class="gradient-container">
-            <h1 class="gradient-text">Chat with Health Assistant</h1>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """
+    <style>
+    .gradient-container-chat {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        margin: 1rem 0;
+        padding: 20px;
+        border-radius: 10px;
+        background: linear-gradient(45deg,#ff7e5f, #feb47b);
+        color: white;
+        text-align: center;
+    }
+    .gradient-text {
+        font-size: 2.5em;
+        font-weight: bold;
+    }
+    .gradient-subtext {
+        font-size: 1.2em;
+        margin-top: 10px;
+    }
+    </style>
+    <div class="gradient-container-chat">
+        <div class="gradient-text">Chat with Health Assistant</div>
+        <div class="gradient-subtext">Get instant health insights and recommendations through AI-powered chat</div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # Chat history (allows to ask multiple questions)
 try:
@@ -95,6 +98,7 @@ except:
     st.session_state.messages = []
     st.session_state.gemini_history = []
     print('new_cache made')
+
 st.session_state.model = genai.GenerativeModel('gemini-pro')
 st.session_state.chat = st.session_state.model.start_chat(
     history=st.session_state.gemini_history,
@@ -107,6 +111,31 @@ for message in st.session_state.messages:
         avatar=message.get('avatar'),
     ):
         st.markdown(message['content'])
+
+# Get data from session state
+data_df = st.session_state.get("data")
+
+# Prepare data summary for context
+data_summary = f"""
+Heart Rate: {data_df['Heart Rate'].mean():.2f} bpm (average)
+Temperature: {data_df['Temperature'].mean():.2f} °C (average)
+ECG: {data_df['ECG'].mean():.2f} (average)
+SpO2: {data_df['SpO2'].mean():.2f} % (average)
+"""
+
+# Prepare the prompt with the data table
+data_table_prompt = f"""
+Based on your health data:
+
+| Metric      | Average Value |
+|-------------|---------------|
+| Heart Rate  | {data_df['Heart Rate'].mean():.2f} bpm  |
+| Temperature | {data_df['Temperature'].mean():.2f} °C  |
+| ECG         | {data_df['ECG'].mean():.2f}        |
+| SpO2        | {data_df['SpO2'].mean():.2f} %    |
+
+How can I assist you further?
+"""
 
 # React to user input
 if prompt := st.chat_input('Your message here...'):
@@ -125,8 +154,9 @@ if prompt := st.chat_input('Your message here...'):
         )
     )
     ## Send message to AI
+    full_prompt = f"{data_table_prompt}\n\nUser query: {prompt}"
     response = st.session_state.chat.send_message(
-        prompt,
+        full_prompt,
         stream=True,
     )
     # Display assistant response in chat message container
