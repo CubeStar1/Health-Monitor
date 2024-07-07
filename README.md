@@ -11,7 +11,7 @@ This repository contains the source code for a Health Monitoring Dashboard, desi
 - **Chatbot Integration**: Integrates a chatbot to provide health tips, reminders, and alerts based on the user's health metrics.
 - **Customizable Alerts**: Sends customizable alerts and notifications based on the user's health metrics, helping them stay informed and proactive.
 
-![Health Monitoring Dashboard](https://github.com/CubeStar1/Health-Monitor/blob/master/static/health-monitor-ui.png?raw=true)
+![Health Monitoring Dashboard](https://github.com/CubeStar1/Health-Monitor/blob/master/static/health-monitor-ui.jpg?raw=true)
 
 ## Installation
 
